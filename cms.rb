@@ -3,11 +3,17 @@ require "sinatra/reloader" if development?
 require "tilt/erubis" # erb view templates
 require "redcarpet" # markdown parser
 
-root = File.expand_path("..", __FILE__)
-
 configure do
   enable :sessions
   set :session_secret, 'secret'
+end
+
+def data_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/data", __FILE__)
+  else
+    File.expand_path("../data", __FILE__)
+  end
 end
 
 def render_markdown(text)
@@ -28,13 +34,14 @@ end
 
 # Display list of files in data directory
 get "/" do
-  @files = Dir.glob(root + "/data/*").map { |path| File.basename(path) }
+  pattern = File.join(data_path, "*")
+  @files = Dir.glob(pattern).map { |path| File.basename(path) }
   erb :index
 end
 
 # Open a file
 get "/:filename" do
-  file_path = root + "/data/" + params[:filename]
+  file_path = File.join(data_path, params[:filename])
 
   if File.file?(file_path)
     load_file_content(file_path)
@@ -46,17 +53,17 @@ end
 
 # Edit file content
 get "/:filename/edit" do
-  file_path = root + "/data/" + params[:filename]
+  file_path = File.join(data_path, params[:filename])
 
   @fileread = params[:filename]
   @content = File.read(file_path)
-  
+
   erb :edit
 end
 
 # Save changes to edited file
 post "/:filename" do
-  file_path = root + "/data/" + params[:filename]
+  file_path = File.join(data_path, params[:filename])
 
   File.write(file_path, params[:content])
 
