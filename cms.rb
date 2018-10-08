@@ -37,7 +37,7 @@ def error_for_filename(filename)
   error_message = nil
   if filename.size == 0
     error_message = session[:message] = "A name is required."
-  elsif filename.match(/\.[a-z]{2,}\z/).nil?
+  elsif %w(.md .txt).include?(File.extname(filename)) == false
     error_message = session[:message] = "A file extension is required."
   end
   error_message
