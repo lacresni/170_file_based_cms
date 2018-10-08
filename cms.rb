@@ -33,6 +33,38 @@ def load_file_content(file)
   end
 end
 
+def error_for_filename(filename)
+  error_message = nil
+  if filename.size == 0
+    error_message = session[:message] = "A name is required."
+  elsif filename.match(/\.[a-z]{2,}\z/).nil?
+    error_message = session[:message] = "A file extension is required."
+  end
+  error_message
+end
+
+# Add a new file
+get "/new" do
+  erb :new
+end
+
+# Create new file
+post "/create" do
+  filename = params[:filename].to_s
+
+  if error_for_filename(filename)
+    status 422 # Unprocessable Entity
+    erb :new
+  else
+    file_path = File.join(data_path, filename)
+
+    File.write(file_path, "")
+    session[:message] = "#{filename} was created."
+
+    redirect "/"
+  end
+end
+
 # Display list of files in data directory
 get "/" do
   pattern = File.join(data_path, "*")
