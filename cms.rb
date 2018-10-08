@@ -17,7 +17,8 @@ def data_path
 end
 
 def render_markdown(text)
-  markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
+  renderer = Redcarpet::Render::HTML.new(no_styles: true)
+  markdown = Redcarpet::Markdown.new(renderer)
   markdown.render(text)
 end
 
@@ -25,7 +26,7 @@ def load_file_content(file)
   content = File.read(file)
   case File.extname(file)
   when ".md"
-    render_markdown(content)
+    erb render_markdown(content), layout: :layout
   when ".txt"
     headers["Content-Type"] = "text/plain"
     content
@@ -36,7 +37,7 @@ end
 get "/" do
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map { |path| File.basename(path) }
-  erb :index
+  erb :index, layout: :layout
 end
 
 # Open a file
@@ -58,7 +59,7 @@ get "/:filename/edit" do
   @fileread = params[:filename]
   @content = File.read(file_path)
 
-  erb :edit
+  erb :edit, layout: :layout
 end
 
 # Save changes to edited file
