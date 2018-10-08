@@ -152,4 +152,29 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "A file extension is required."
   end
 
+  def test_delete_file
+    create_document("test.txt")
+
+    post "/test.txt/delete"
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_includes last_response.body, "test.txt was deleted."
+
+    get "/"
+    refute_includes last_response.body, "test.txt"
+  end
+
+  def test_delete_non_existing_file
+    create_document("test.txt")
+
+    post "/unknown.txt/delete"
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_includes last_response.body, "unknown.txt does not exist."
+
+    get "/"
+    refute_includes last_response.body, "unknown.txt"
+  end
 end
