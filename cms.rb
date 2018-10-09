@@ -43,6 +43,10 @@ def error_for_filename(filename)
   error_message
 end
 
+def credentials_valid?(username, password)
+  username == "admin" && password == "secret"
+end
+
 # Add a new file
 get "/new" do
   erb :new
@@ -69,7 +73,7 @@ end
 get "/" do
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map { |path| File.basename(path) }
-  erb :index, layout: :layout
+  erb :index
 end
 
 # Open a file
@@ -114,5 +118,33 @@ post "/:filename/delete" do
   else
     session[:message] = "#{params[:filename]} does not exist."
   end
+  redirect "/"
+end
+
+# Login form
+get "/users/signin" do
+  erb :signin
+end
+
+# Login validation
+post "/users/signin" do
+  username = params[:username].to_s
+  password = params[:password].to_s
+
+  if credentials_valid?(username, password)
+    session[:username] = username
+    session[:message] = "Welcome!"
+    redirect "/"
+  else
+    session[:message] = "Invalid Credentials"
+    status 422 # Unprocessable Entity
+    erb :signin
+  end
+end
+
+# Sign out
+post "/users/signout" do
+  session.delete(:username)
+  session[:message] = "You have been signed out."
   redirect "/"
 end
