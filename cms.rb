@@ -36,9 +36,9 @@ end
 def error_for_filename(filename)
   error_message = nil
   if filename.size == 0
-    error_message = session[:message] = "A name is required."
+    error_message = "A name is required."
   elsif %w(.md .txt).include?(File.extname(filename)) == false
-    error_message = session[:message] = "A file extension is required."
+    error_message = "A file extension is required."
   end
   error_message
 end
@@ -56,7 +56,9 @@ end
 post "/create" do
   filename = params[:filename].to_s
 
-  if error_for_filename(filename)
+  error_message = error_for_filename(filename)
+  if error_message
+    session[:message] = error_message
     status 422 # Unprocessable Entity
     erb :new
   else

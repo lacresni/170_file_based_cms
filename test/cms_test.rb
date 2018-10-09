@@ -27,6 +27,10 @@ class CMSTest < Minitest::Test
     end
   end
 
+  def session
+    last_request.env["rack.session"]
+  end
+
   def test_index
     create_document("changes.txt")
     create_document("about.md")
@@ -66,12 +70,10 @@ class CMSTest < Minitest::Test
   def test_document_not_existing
     get "/unknown.ext" # Attempt to access a nonexistent file
 
+    assert_equal "unknown.ext does not exist.", session[:message]
     assert_equal 302, last_response.status # Assert that the user was redirected
 
     get last_response["Location"] # Request the page that the user was redirected to
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "unknown.ext does not exist"
 
     get "/" # Reload the page
     refute_includes last_response.body, "unknown.ext does not exist" # Assert that our message has been removed
@@ -104,13 +106,11 @@ class CMSTest < Minitest::Test
 
     post "/changes.txt", content: "New content"
     assert_equal 302, last_response.status  # Sinatra uses 303 but Rack::Test always sets 302
+    assert_equal "changes.txt has been updated.", session[:message]
 
     get last_response["Location"]
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "changes.txt has been updated."
 
     get "/"
-    assert_equal 200, last_response.status
     refute_includes last_response.body, "changes.txt has been updated."
 
     get "/changes.txt"
@@ -128,9 +128,7 @@ class CMSTest < Minitest::Test
   def test_create_new_document
     post "/create", filename: "new_file.md"
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "new_file.md was created."
+    assert_equal "new_file.md was created.", session[:message]
 
     get "/"
     assert_includes last_response.body, "new_file.md"
@@ -157,12 +155,10 @@ class CMSTest < Minitest::Test
 
     post "/test.txt/delete"
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "test.txt was deleted."
+    assert_equal "test.txt was deleted.", session[:message]
 
     get "/"
-    refute_includes last_response.body, "test.txt"
+    refute_includes last_response.body, %q(href="test.txt")
   end
 
   def test_delete_non_existing_file
@@ -170,19 +166,13 @@ class CMSTest < Minitest::Test
 
     post "/unknown.txt/delete"
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "unknown.txt does not exist."
-
-    get "/"
-    refute_includes last_response.body, "unknown.txt"
+    assert_equal "unknown.txt does not exist.", session[:message]
   end
 
   def test_signed_out_user_index
     get "/"
     assert_equal 200, last_response.status
-    assert_includes last_response.body, %q(<button type="submit">Sign In</button>)
-    refute_includes last_response.body, "Signed in as"
+    assert_nil session[:username]
   end
 
   def test_signin_form
@@ -196,6 +186,7 @@ class CMSTest < Minitest::Test
   def test_signin_with_invalid_credentials
     post "/users/signin", username: "nicolas", password: "test"
     assert_equal 422, last_response.status
+    assert_nil session[:username]
     assert_includes last_response.body, "Invalid Credentials"
     assert_includes last_response.body, %q(<input class="inline" name="username")
     assert_includes last_response.body, %q(input class="inline" name="password")
@@ -204,26 +195,25 @@ class CMSTest < Minitest::Test
   def test_signin_with_valid_credentials
     post "/users/signin", username: "admin", password: "secret"
     assert_equal 302, last_response.status
+    assert_equal "Welcome!", session[:message]
+    assert_equal "admin", session[:username]
 
     get last_response["Location"]
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "Welcome!"
     assert_includes last_response.body, "Signed in as admin"
-    assert_includes last_response.body, %q(<button type="submit">Sign Out</button>)
   end
 
   def test_sign_out
-    post "/users/signin", username: "admin", password: "secret"
-    get last_response["Location"]
-    assert_includes last_response.body, "Welcome!"
+    get "/", {}, { "rack.session" => { username: "admin" } }
+    assert_includes last_response.body, "Signed in as admin"
 
     post "/users/signout"
     assert_equal 302, last_response.status
+    assert_nil session[:username]
+    assert_equal "You have been signed out.", session[:message]
 
     get last_response["Location"]
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "You have been signed out."
-    assert_includes last_response.body, %q(<button type="submit">Sign In</button>)
     refute_includes last_response.body, "Signed in as"
   end
 end
