@@ -47,13 +47,27 @@ def credentials_valid?(username, password)
   username == "admin" && password == "secret"
 end
 
+def user_authorized?
+  session[:username] == "admin"
+end
+
+def require_signed_in_user
+  unless user_authorized?
+    session[:message] = "You must be signed in to do that."
+    redirect "/"
+  end
+end
+
 # Add a new file
 get "/new" do
+  require_signed_in_user
   erb :new
 end
 
 # Create new file
 post "/create" do
+  require_signed_in_user
+
   filename = params[:filename].to_s
 
   error_message = error_for_filename(filename)
@@ -92,6 +106,8 @@ end
 
 # Edit file content
 get "/:filename/edit" do
+  require_signed_in_user
+
   file_path = File.join(data_path, params[:filename])
 
   @fileread = params[:filename]
@@ -102,6 +118,8 @@ end
 
 # Save changes to edited file
 post "/:filename" do
+  require_signed_in_user
+
   file_path = File.join(data_path, params[:filename])
 
   File.write(file_path, params[:content])
@@ -112,6 +130,8 @@ end
 
 # Delete a file
 post "/:filename/delete" do
+  require_signed_in_user
+
   file_path = File.join(data_path, params[:filename])
 
   if File.file?(file_path)
@@ -120,6 +140,7 @@ post "/:filename/delete" do
   else
     session[:message] = "#{params[:filename]} does not exist."
   end
+
   redirect "/"
 end
 
