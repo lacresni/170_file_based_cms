@@ -232,7 +232,7 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, %q(input class="inline" name="password")
   end
 
-  def test_signin_with_valid_credentials
+  def test_signin_with_admin_credentials
     post "/users/signin", username: "admin", password: "secret"
     assert_equal 302, last_response.status
     assert_equal "Welcome!", session[:message]
@@ -241,6 +241,17 @@ class CMSTest < Minitest::Test
     get last_response["Location"]
     assert_equal 200, last_response.status
     assert_includes last_response.body, "Signed in as admin"
+  end
+
+  def test_signin_with_user_credentials
+    post "/users/signin", username: "user_test", password: "test1234"
+    assert_equal 302, last_response.status
+    assert_equal "Welcome!", session[:message]
+    assert_equal "user_test", session[:username]
+
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Signed in as user_test"
   end
 
   def test_sign_out

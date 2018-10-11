@@ -2,6 +2,7 @@ require "sinatra"
 require "sinatra/reloader" if development?
 require "tilt/erubis" # erb view templates
 require "redcarpet" # markdown parser
+require 'yaml' # YAML format parser
 
 configure do
   enable :sessions
@@ -43,12 +44,28 @@ def error_for_filename(filename)
   error_message
 end
 
+def load_user_credentials
+  credentials_path = if ENV["RACK_ENV"] == "test"
+                       File.expand_path("../test/users.yml", __FILE__)
+                     else
+                       File.expand_path("../users.yml", __FILE__)
+                     end
+
+  YAML.load_file(credentials_path)
+end
+
 def credentials_valid?(username, password)
-  username == "admin" && password == "secret"
+  return true if username == "admin" && password == "secret"
+
+  credentials = load_user_credentials
+
+  credentials.any? do |name, pwd|
+    name == username && pwd == password
+  end
 end
 
 def user_authorized?
-  session[:username] == "admin"
+  session.key?(:username)
 end
 
 def require_signed_in_user
