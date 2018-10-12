@@ -3,6 +3,7 @@ require "sinatra/reloader" if development?
 require "tilt/erubis" # erb view templates
 require "redcarpet" # markdown parser
 require 'yaml' # YAML format parser
+require 'bcrypt' # passwords encryption
 
 configure do
   enable :sessions
@@ -55,12 +56,10 @@ def load_user_credentials
 end
 
 def credentials_valid?(username, password)
-  return true if username == "admin" && password == "secret"
-
   credentials = load_user_credentials
 
   credentials.any? do |name, pwd|
-    name == username && pwd == password
+    name == username && BCrypt::Password.new(pwd) == password
   end
 end
 

@@ -1,5 +1,6 @@
 {
-  nicolas: "123456",
-  tom: abcdef,
-  jerry: mouse
+  admin: "$2a$10$6bf4/75NYhgFrIzZx09Tju.LeSCFcumzgCEbqQODQ.TcKLis4zVSa",
+  nicolas: "$2a$10$UYKS4I.iCQ.Ev5e.ryogiuCmu/vo/Yhn5ibcMBPRenH.toj.qGJHa",
+  tom: "$2a$10$0FFZKmOXCWn8IRw7/hDlOeVRaKoSE8RnyoOMLOHWi382b2ooCAdU.",
+  jerry: "$2a$10$6IGENtHoa3dgX5nYHbBJBeT3bEQjCq/rtVYaIPCbvCc6UEANaC//q"
 }
