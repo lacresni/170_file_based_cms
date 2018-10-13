@@ -36,12 +36,12 @@ def load_file_content(file)
 end
 
 def valid_extension?(filename)
-  %w(.md .txt .jpg .png).include?(File.extname(filename))
+  %w[.md .txt .jpg .png].include?(File.extname(filename))
 end
 
 def error_for_filename(filename)
   error_message = nil
-  if filename.size == 0
+  if filename.empty?
     error_message = "A name is required."
   elsif valid_extension?(filename) == false
     error_message = "A valid file extension is required."
@@ -67,8 +67,17 @@ def credentials_valid?(username, password)
   end
 end
 
-def extract_name_extension_from_filename(filename)
+def extract_name_extension(filename)
   filename.split('.')
+end
+
+def rename_file(old_file, new_file)
+  orig_file_path = File.join(data_path, old_file)
+  new_file_path = File.join(data_path, new_file)
+
+  content = File.read(orig_file_path)
+  File.write(new_file_path, content)
+  File.delete(orig_file_path)
 end
 
 def user_authorized?
@@ -76,10 +85,9 @@ def user_authorized?
 end
 
 def require_signed_in_user
-  unless user_authorized?
-    session[:message] = "You must be signed in to do that."
-    redirect "/"
-  end
+  return if user_authorized?
+  session[:message] = "You must be signed in to do that."
+  redirect "/"
 end
 
 # Add a new file
@@ -175,7 +183,7 @@ post "/:filename/duplicate" do
   orig_file_path = File.join(data_path, params[:filename])
 
   if File.file?(orig_file_path)
-    filename, extension = extract_name_extension_from_filename(params[:filename])
+    filename, extension = extract_name_extension(params[:filename])
     new_file_path = File.join(data_path, filename + "_copy" + "." + extension)
     content = File.read(orig_file_path)
     File.write(new_file_path, content)
@@ -191,9 +199,7 @@ end
 get "/:filename/rename" do
   require_signed_in_user
 
-  file_path = File.join(data_path, params[:filename])
   @fileread = params[:filename]
-
   erb :rename, layout: :layout
 end
 
@@ -212,10 +218,7 @@ post "/:filename/rename" do
       status 422 # Unprocessable Entity
       erb :rename
     else
-      new_file_path = File.join(data_path, new_filename)
-      content = File.read(orig_file_path)
-      File.write(new_file_path, content)
-      File.delete(orig_file_path)
+      rename_file(params[:filename], new_filename)
       session[:message] = "#{params[:filename]} was renamed."
       redirect "/"
     end
