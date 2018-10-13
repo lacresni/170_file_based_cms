@@ -269,4 +269,49 @@ class CMSTest < Minitest::Test
     assert_equal 200, last_response.status
     refute_includes last_response.body, "Signed in as"
   end
+
+  def test_duplicating_document_signed_out
+    create_document("test.txt")
+
+    post "/test.txt/duplicate"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
+  def test_duplicating_document
+    create_document("test.txt")
+
+    post "/test.txt/duplicate", {}, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test.txt was duplicated.", session[:message]
+
+    get last_response["Location"]
+    assert_includes last_response.body, "test_copy.txt"
+  end
+
+  def test_renaming_document_signed_out
+    create_document("test.txt")
+
+    get "/test.txt/rename"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+
+    post "/test.txt/rename"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
+  def test_renaming_document
+    create_document("test_copy.txt")
+
+    post "/test_copy.txt/rename", { rename: "test.txt" }, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test_copy.txt was renamed.", session[:message]
+
+    get last_response["Location"]
+    assert_includes last_response.body, "test.txt"
+
+    get "/"
+    refute_includes last_response.body, "test_copy.txt"
+  end
 end

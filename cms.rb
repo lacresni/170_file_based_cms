@@ -67,6 +67,10 @@ def credentials_valid?(username, password)
   end
 end
 
+def extract_name_extension_from_filename(filename)
+  filename.split('.')
+end
+
 def user_authorized?
   session.key?(:username)
 end
@@ -162,6 +166,63 @@ post "/:filename/delete" do
   end
 
   redirect "/"
+end
+
+# Duplicating a file
+post "/:filename/duplicate" do
+  require_signed_in_user
+
+  orig_file_path = File.join(data_path, params[:filename])
+
+  if File.file?(orig_file_path)
+    filename, extension = extract_name_extension_from_filename(params[:filename])
+    new_file_path = File.join(data_path, filename + "_copy" + "." + extension)
+    content = File.read(orig_file_path)
+    File.write(new_file_path, content)
+    session[:message] = "#{params[:filename]} was duplicated."
+  else
+    session[:message] = "#{params[:filename]} does not exist."
+  end
+
+  redirect "/"
+end
+
+# Form to rename a file
+get "/:filename/rename" do
+  require_signed_in_user
+
+  file_path = File.join(data_path, params[:filename])
+  @fileread = params[:filename]
+
+  erb :rename, layout: :layout
+end
+
+# Renaming a file
+post "/:filename/rename" do
+  require_signed_in_user
+
+  orig_file_path = File.join(data_path, params[:filename])
+  new_filename = params[:rename].to_s
+
+  if File.file?(orig_file_path)
+    error_message = error_for_filename(new_filename)
+    if error_message
+      @fileread = params[:filename]
+      session[:message] = error_message
+      status 422 # Unprocessable Entity
+      erb :rename
+    else
+      new_file_path = File.join(data_path, new_filename)
+      content = File.read(orig_file_path)
+      File.write(new_file_path, content)
+      File.delete(orig_file_path)
+      session[:message] = "#{params[:filename]} was renamed."
+      redirect "/"
+    end
+  else
+    session[:message] = "#{params[:filename]} does not exist."
+    redirect "/"
+  end
 end
 
 # Login form
