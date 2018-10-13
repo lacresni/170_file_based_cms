@@ -19,6 +19,14 @@ class CMSTest < Minitest::Test
 
   def teardown
     FileUtils.rm_rf(data_path)
+    # clean-up test/user.yml (remove newly created new_user)
+    credentials = load_user_credentials
+    if credentials.key?("new_user")
+      credentials.delete("new_user")
+      File.open(credentials_path, "w") do |file|
+        file.write(credentials.to_yaml)
+      end
+    end
   end
 
   def create_document(name, content = "")
@@ -314,4 +322,45 @@ class CMSTest < Minitest::Test
     get "/"
     refute_includes last_response.body, "test_copy.txt"
   end
+
+  def test_signup_form
+    get "/users/signup"
+
+    assert_equal 200, last_response.status
+    text = %q(<label>Please choose a username and a password to sign up)
+    assert_includes last_response.body, text
+    assert_includes last_response.body, %q(<input class="inline" name="username")
+    assert_includes last_response.body, %q(input class="inline" name="password")
+  end
+
+  def test_signup_with_empty_password
+    post "/users/signup", username: "new_user", password: ""
+    assert_equal 422, last_response.status
+    assert_nil session[:username]
+    assert_includes last_response.body, "A username and a password are required."
+    assert_includes last_response.body, %q(<input class="inline" name="username")
+    assert_includes last_response.body, %q(input class="inline" name="password")
+  end
+
+  def test_signup_with_existing_username
+    post "/users/signup", username: "nicolas", password: "secret"
+    assert_equal 422, last_response.status
+    assert_nil session[:username]
+    expected_text = "Username already existing. Please choose another one."
+    assert_includes last_response.body, expected_text
+    assert_includes last_response.body, %q(<input class="inline" name="username")
+    assert_includes last_response.body, %q(input class="inline" name="password")
+  end
+
+  def test_signup_with_valid_credentials
+    post "/users/signup", username: "new_user", password: "secret"
+    assert_equal 302, last_response.status
+    assert_equal "Welcome, you've been registered!", session[:message]
+    assert_equal "new_user", session[:username]
+
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Signed in as new_user"
+  end
+
 end

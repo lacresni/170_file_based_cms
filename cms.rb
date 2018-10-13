@@ -49,13 +49,22 @@ def error_for_filename(filename)
   error_message
 end
 
-def load_user_credentials
-  credentials_path = if ENV["RACK_ENV"] == "test"
-                       File.expand_path("../test/users.yml", __FILE__)
-                     else
-                       File.expand_path("../users.yml", __FILE__)
-                     end
+def credentials_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/users.yml", __FILE__)
+  else
+    File.expand_path("../users.yml", __FILE__)
+  end
+end
 
+def store_credentials(username, password)
+  credentials = load_user_credentials
+  credentials[username] = BCrypt::Password.create(password).to_s
+
+  File.open(credentials_path, "w") { |file| file.write(credentials.to_yaml) }
+end
+
+def load_user_credentials
   YAML.load_file(credentials_path)
 end
 
@@ -65,6 +74,18 @@ def credentials_valid?(username, password)
   credentials.any? do |name, pwd|
     name == username && BCrypt::Password.new(pwd) == password
   end
+end
+
+def signup_credentials_valid?(username, password)
+  error_message = nil
+  credentials = load_user_credentials
+
+  if username.empty? || password.empty?
+    error_message = "A username and a password are required."
+  elsif credentials.key?(username)
+    error_message = "Username already existing. Please choose another one."
+  end
+  error_message
 end
 
 def extract_name_extension(filename)
@@ -233,6 +254,11 @@ get "/users/signin" do
   erb :signin
 end
 
+# Signup form
+get "/users/signup" do
+  erb :signup
+end
+
 # Login validation
 post "/users/signin" do
   username = params[:username].to_s
@@ -246,6 +272,24 @@ post "/users/signin" do
     session[:message] = "Invalid Credentials"
     status 422 # Unprocessable Entity
     erb :signin
+  end
+end
+
+# Signup validation
+post "/users/signup" do
+  username = params[:username].to_s
+  password = params[:password].to_s
+
+  error_message = signup_credentials_valid?(username, password)
+  if error_message
+    session[:message] = error_message
+    status 422 # Unprocessable Entity
+    erb :signup
+  else
+    store_credentials(username, password)
+    session[:username] = username
+    session[:message] = "Welcome, you've been registered!"
+    redirect "/"
   end
 end
 
