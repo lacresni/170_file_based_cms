@@ -35,12 +35,16 @@ def load_file_content(file)
   end
 end
 
+def valid_extension?(filename)
+  %w(.md .txt .jpg .png).include?(File.extname(filename))
+end
+
 def error_for_filename(filename)
   error_message = nil
   if filename.size == 0
     error_message = "A name is required."
-  elsif %w(.md .txt).include?(File.extname(filename)) == false
-    error_message = "A file extension is required."
+  elsif valid_extension?(filename) == false
+    error_message = "A valid file extension is required."
   end
   error_message
 end

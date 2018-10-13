@@ -169,11 +169,13 @@ class CMSTest < Minitest::Test
   def test_create_new_document_without_extension
     post "/create", { filename: "test" }, admin_session
     assert_equal 422, last_response.status
-    assert_includes last_response.body, "A file extension is required."
+    assert_includes last_response.body, "A valid file extension is required."
+  end
 
-    post "/create", filename: "test.z"
+  def test_create_new_document_with_unsupported_extension
+    post "/create", { filename: "test.z" }, admin_session
     assert_equal 422, last_response.status
-    assert_includes last_response.body, "A file extension is required."
+    assert_includes last_response.body, "A valid file extension is required."
   end
 
   def test_create_new_document_signed_out
