@@ -32,11 +32,17 @@ def load_file_content(file)
   when ".txt"
     headers["Content-Type"] = "text/plain"
     content
+  when ".jpg", ".jpeg", ".png"
+    send_file(file)
   end
 end
 
 def valid_extension?(filename)
-  %w[.md .txt .jpg .png].include?(File.extname(filename))
+  %w[.md .txt .jpeg .jpg .png].include?(File.extname(filename))
+end
+
+def image_extension?(filename)
+  %w[.jpeg .jpg .png].include?(File.extname(filename))
 end
 
 def error_for_filename(filename)
@@ -141,8 +147,32 @@ end
 # Display list of files in data directory
 get "/" do
   pattern = File.join(data_path, "*")
-  @files = Dir.glob(pattern).map { |path| File.basename(path) }
+  allfiles = Dir.glob(pattern).map { |path| File.basename(path) }
+  @images, @files = allfiles.partition do |file|
+    image_extension?(file)
+  end
   erb :index
+end
+
+# Upload image form
+get "/img_upload" do
+  require_signed_in_user
+
+  erb :img_upload
+end
+
+# Upload an image
+post "/img_upload" do
+  require_signed_in_user
+
+  name = params[:image][:filename]
+  image = params[:image][:tempfile]
+
+  image_path = File.join(data_path, name)
+  File.write(image_path, image.read)
+
+  session[:message] = "An image #{name} has been uploaded."
+  redirect "/"
 end
 
 # Open a file

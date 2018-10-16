@@ -1,3 +1,4 @@
+<h2>File List:</h2>
 <ul>
   <% @files.each do |file| %>
     <li>
@@ -16,9 +17,29 @@
   <% end %>
 </ul>
 
-<p><a href="/new">New document</a></p>
+<p>Want to add a <a href="/new">New document</a>?</p>
 
 <div>
+  <h2>Images List:</h2>
+  <ul>
+    <% @images.each do |image| %>
+      <li>
+        <a href="/<%= image %>"><%= image %></a>
+        <form class="inline" action="/<%= image %>/delete" method="post">
+          <button type="submit">Delete</button>
+        </form>
+      </li>
+    <% end %>
+  </ul>
+
+  <form class="inline" action="/img_upload" method="get">
+    <label>Want to add images?</label>
+    <button type="submit">Upload Image</button>
+  </form>
+</div>
+
+<div>
+  <h2>User section:</h2>
   <% if session[:username] %>
     <form class="inline" action="/users/signout" method="post">
       <p class="user-status">
@@ -28,9 +49,11 @@
     </form>
   <% else %>
     <form class="inline" action="/users/signin" method="get">
+      <label>Existing user?</label>
       <button type="submit">Sign In</button>
     </form>
     <form class="inline" action="/users/signup" method="get">
+      <label>New user? Want to register?</label>
       <button type="submit">Sign Up</button>
     </form>
   <% end %>

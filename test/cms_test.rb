@@ -363,4 +363,34 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "Signed in as new_user"
   end
 
+  def test_upload_form_signed_out
+    get "/img_upload"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
+  end
+
+  def test_upload_form
+    get "/img_upload", {}, admin_session
+
+    assert_equal 200, last_response.status
+    expected_text = %q(<input name="image" type="file" accept=".png, .jpg,)
+    assert_includes last_response.body, expected_text
+    expected_text = %q(<label for="image">Select image to upload:)
+    assert_includes last_response.body, expected_text
+  end
+
+  def test_upload_image
+    img_path_dir = File.expand_path("..", __FILE__)
+    img_path = File.join(img_path_dir, "/images/ruby.jpg")
+    img = Rack::Test::UploadedFile.new(img_path, "image/jpeg")
+
+    post "/img_upload", { image: img }, admin_session
+    assert_equal "An image ruby.jpg has been uploaded.", session[:message]
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+
+    get "/"
+    assert_includes last_response.body, "ruby.jpg"
+  end
 end
