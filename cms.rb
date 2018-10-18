@@ -10,18 +10,19 @@ configure do
   set :session_secret, 'secret'
 end
 
+def render_markdown(text)
+  renderer = Redcarpet::Render::HTML.new(no_styles: true)
+  markdown = Redcarpet::Markdown.new(renderer)
+  markdown.render(text)
+end
+
+# files helpers
 def data_path
   if ENV["RACK_ENV"] == "test"
     File.expand_path("../test/data", __FILE__)
   else
     File.expand_path("../data", __FILE__)
   end
-end
-
-def render_markdown(text)
-  renderer = Redcarpet::Render::HTML.new(no_styles: true)
-  markdown = Redcarpet::Markdown.new(renderer)
-  markdown.render(text)
 end
 
 def load_file_content(file)
@@ -45,6 +46,19 @@ def image_extension?(filename)
   %w[.jpeg .jpg .png].include?(File.extname(filename))
 end
 
+def extract_name_extension(filename)
+  filename.split('.')
+end
+
+def rename_file(old_file, new_file)
+  orig_file_path = File.join(data_path, old_file)
+  new_file_path = File.join(data_path, new_file)
+
+  content = File.read(orig_file_path)
+  File.write(new_file_path, content)
+  File.delete(orig_file_path)
+end
+
 def error_for_filename(filename)
   error_message = nil
   if filename.empty?
@@ -55,12 +69,18 @@ def error_for_filename(filename)
   error_message
 end
 
-def credentials_path
+def yaml_path(type)
   if ENV["RACK_ENV"] == "test"
-    File.expand_path("../test/users.yml", __FILE__)
+    File.expand_path("../test/#{type}.yml", __FILE__)
   else
-    File.expand_path("../users.yml", __FILE__)
+    File.expand_path("../#{type}.yml", __FILE__)
   end
+end
+
+# credentials helpers
+
+def credentials_path
+  yaml_path("users")
 end
 
 def store_credentials(username, password)
@@ -94,18 +114,7 @@ def signup_credentials_valid?(username, password)
   error_message
 end
 
-def extract_name_extension(filename)
-  filename.split('.')
-end
-
-def rename_file(old_file, new_file)
-  orig_file_path = File.join(data_path, old_file)
-  new_file_path = File.join(data_path, new_file)
-
-  content = File.read(orig_file_path)
-  File.write(new_file_path, content)
-  File.delete(orig_file_path)
-end
+# user helpers
 
 def user_authorized?
   session.key?(:username)
@@ -115,6 +124,40 @@ def require_signed_in_user
   return if user_authorized?
   session[:message] = "You must be signed in to do that."
   redirect "/"
+end
+
+# history helpers
+def history_path
+  yaml_path("history")
+end
+
+def load_history
+  YAML.load_file(history_path)
+end
+
+def store_history(filename)
+  history = load_history || {}
+
+  if history.key?(filename)
+    file_path = File.join(data_path, filename)
+    history[filename] << File.read(file_path)
+  else
+    history[filename] = []
+  end
+
+  File.open(history_path, "w") { |file| file.write(history.to_yaml) }
+end
+
+def delete_history(filename)
+  history = load_history
+  history.delete(filename)
+  File.open(history_path, "w") { |file| file.write(history.to_yaml) }
+end
+
+def rename_history(oldname, newname)
+  history = load_history
+  history[newname] = history.delete(oldname) if history.key?(oldname)
+  File.open(history_path, "w") { |file| file.write(history.to_yaml) }
 end
 
 # Add a new file
@@ -136,8 +179,8 @@ post "/create" do
     erb :new
   else
     file_path = File.join(data_path, filename)
-
     File.write(file_path, "")
+    store_history(filename)
     session[:message] = "#{filename} was created."
 
     redirect "/"
@@ -151,6 +194,8 @@ get "/" do
   @images, @files = allfiles.partition do |file|
     image_extension?(file)
   end
+  @history = load_history
+
   erb :index
 end
 
@@ -203,8 +248,9 @@ end
 post "/:filename" do
   require_signed_in_user
 
-  file_path = File.join(data_path, params[:filename])
+  store_history(params[:filename])
 
+  file_path = File.join(data_path, params[:filename])
   File.write(file_path, params[:content])
 
   session[:message] = "#{params[:filename]} has been updated."
@@ -219,6 +265,7 @@ post "/:filename/delete" do
 
   if File.file?(file_path)
     File.delete(file_path)
+    delete_history(params[:filename])
     session[:message] = "#{params[:filename]} was deleted."
   else
     session[:message] = "#{params[:filename]} does not exist."
@@ -235,9 +282,11 @@ post "/:filename/duplicate" do
 
   if File.file?(orig_file_path)
     filename, extension = extract_name_extension(params[:filename])
-    new_file_path = File.join(data_path, filename + "_copy" + "." + extension)
+    new_filename = filename + "_copy" + "." + extension
+    new_file_path = File.join(data_path, new_filename)
     content = File.read(orig_file_path)
     File.write(new_file_path, content)
+    store_history(new_filename)
     session[:message] = "#{params[:filename]} was duplicated."
   else
     session[:message] = "#{params[:filename]} does not exist."
@@ -270,6 +319,7 @@ post "/:filename/rename" do
       erb :rename
     else
       rename_file(params[:filename], new_filename)
+      rename_history(params[:filename], new_filename)
       session[:message] = "#{params[:filename]} was renamed."
       redirect "/"
     end
@@ -328,4 +378,12 @@ post "/users/signout" do
   session.delete(:username)
   session[:message] = "You have been signed out."
   redirect "/"
+end
+
+# view file history
+get "/:filename/history" do
+  history = load_history
+  @versions = history[params[:filename]]
+
+  erb :history
 end

@@ -1,0 +1,10 @@
+<h2>History for "<%= params[:filename]%>":</h2>
+<ol>
+  <% @versions.each_with_index do |version, index| %>
+    <li>
+      <textarea name="content<%= index %>" rows="5" cols="100"><%= version %></textarea>
+    </li>
+  <% end %>
+</ol>
+
+<p><a href="/">Back to Index page</a></p>

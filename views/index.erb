@@ -13,6 +13,11 @@
       <form class="inline" action="/<%= file %>/delete" method="post">
         <button type="submit">Delete</button>
       </form>
+      <% unless @history.fetch(file, []).empty? %>
+        <form class="inline" action="/<%= file %>/history" method="get">
+          <button type="submit">History</button>
+        </form>
+      <% end %>
     </li>
   <% end %>
 </ul>

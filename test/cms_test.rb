@@ -27,6 +27,12 @@ class CMSTest < Minitest::Test
         file.write(credentials.to_yaml)
       end
     end
+    # clean up test/history.yml ()
+    history = load_history
+    history = {}
+    File.open(history_path, "w") do |file|
+      file.write(history.to_yaml)
+    end
   end
 
   def create_document(name, content = "")
@@ -392,5 +398,26 @@ class CMSTest < Minitest::Test
 
     get "/"
     assert_includes last_response.body, "ruby.jpg"
+  end
+
+  def test_history
+    create_document("test.txt", "Initial content")
+    store_history("test.txt")
+
+    get "/", {}, admin_session
+    assert_equal 200, last_response.status
+    refute_includes last_response.body, %q(<button type="submit">History)
+
+    post "/test.txt", { content: "Initial content\nNew content" }, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test.txt has been updated.", session[:message]
+
+    get last_response["Location"]
+    assert_includes last_response.body, %q(<button type="submit">History)
+
+    get "/test.txt/history"
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Initial content"
+    refute_includes last_response.body, "New content"
   end
 end
