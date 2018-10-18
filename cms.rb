@@ -8,6 +8,7 @@ require 'bcrypt' # passwords encryption
 configure do
   enable :sessions
   set :session_secret, 'secret'
+  set :erb, :escape_html => true
 end
 
 def render_markdown(text)
@@ -28,13 +29,13 @@ end
 def load_file_content(file)
   content = File.read(file)
   case File.extname(file)
+  when ".jpg", ".jpeg", ".png"
+    send_file(file)
   when ".md"
     erb render_markdown(content), layout: :layout
   when ".txt"
     headers["Content-Type"] = "text/plain"
     content
-  when ".jpg", ".jpeg", ".png"
-    send_file(file)
   end
 end
 
@@ -222,7 +223,7 @@ end
 
 # Open a file
 get "/:filename" do
-  file_path = File.join(data_path, params[:filename])
+  file_path = File.join(data_path, File.basename(params[:filename]))
 
   if File.file?(file_path)
     load_file_content(file_path)
